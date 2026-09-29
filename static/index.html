@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feelscape – Emotion Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#110f2b; --ink:#f4f1ff; --muted:#a9a3cf;
+  --c:#8f7bff; /* active emotion colour */
+  --glass:rgba(255,255,255,.07); --line:rgba(255,255,255,.16);
+  --serif:'Fraunces',Georgia,serif; --sans:'DM Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow-x:hidden;position:relative}
+
+/* ---------- living background ---------- */
+.blob{position:fixed;border-radius:50%;filter:blur(70px);opacity:.55;z-index:0;pointer-events:none;
+  transition:background 1.2s ease;animation:drift 18s ease-in-out infinite alternate}
+.b1{width:46vmax;height:46vmax;left:-12vmax;top:-14vmax;background:#ff5fa2}
+.b2{width:40vmax;height:40vmax;right:-10vmax;top:18vh;background:#5b8def;animation-duration:23s;animation-delay:-6s}
+.b3{width:36vmax;height:36vmax;left:22vw;bottom:-18vmax;background:#2ee6c5;animation-duration:27s;animation-delay:-11s}
+body.tinted .b1{background:var(--c)}
+@keyframes drift{
+  0%{transform:translate(0,0) scale(1) rotate(0)}
+  50%{transform:translate(6vmax,-4vmax) scale(1.15) rotate(40deg)}
+  100%{transform:translate(-5vmax,7vmax) scale(.92) rotate(-30deg)}}
+#floaters{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.fl{position:absolute;bottom:-12vh;user-select:none;opacity:0;animation:rise linear forwards}
+@keyframes rise{
+  0%{transform:translate(0,0) rotate(0) scale(.6);opacity:0}
+  10%{opacity:var(--o,.55)}
+  50%{transform:translate(var(--sx),-55vh) rotate(var(--r)) scale(1)}
+  100%{transform:translate(calc(var(--sx)*-1),-125vh) rotate(calc(var(--r)*2)) scale(.8);opacity:0}}
+
+/* ---------- layout ---------- */
+main{position:relative;z-index:2;max-width:820px;margin:0 auto;padding:clamp(28px,6vw,64px) 20px 56px}
+h1{font-family:var(--serif);font-weight:800;font-size:clamp(2.6rem,8vw,4.6rem);line-height:1;letter-spacing:-.02em;text-align:center;
+  background:linear-gradient(100deg,#ffd166,#ff5fa2 35%,#a26bff 65%,#2ee6c5);background-size:250% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 9s linear infinite}
+@keyframes shine{to{background-position:250% 0}}
+.sub{text-align:center;color:var(--muted);margin:14px auto 34px;max-width:46ch;line-height:1.5}
+
+.card{background:var(--glass);border:1px solid var(--line);border-radius:28px;padding:22px;
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.35)}
+textarea{width:100%;min-height:120px;resize:vertical;background:rgba(10,8,30,.45);color:var(--ink);
+  border:1.5px solid var(--line);border-radius:18px;padding:16px 18px;font:500 1.05rem/1.5 var(--sans);outline:none;transition:.25s}
+textarea:focus{border-color:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 28%,transparent)}
+textarea::placeholder{color:#7d77a8}
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:14px;flex-wrap:wrap}
+.count{color:var(--muted);font-size:.85rem}
+button.go{border:0;cursor:pointer;color:#1a1238;font:700 1.05rem var(--sans);padding:14px 28px;border-radius:999px;
+  background:linear-gradient(120deg,#ffd166,#ff8fb8,#b79cff);background-size:200% 100%;
+  box-shadow:0 10px 30px rgba(255,143,184,.4);transition:transform .2s,box-shadow .2s,background-position .6s}
+button.go:hover{transform:translateY(-3px) scale(1.03);background-position:100% 0;box-shadow:0 16px 40px rgba(255,143,184,.55)}
+button.go:active{transform:scale(.97)}
+button.go:disabled{opacity:.7;cursor:wait;animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.04)}}
+:focus-visible{outline:3px solid #fff;outline-offset:3px}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:8px 14px;cursor:pointer;
+  font:500 .88rem var(--sans);transition:.2s}
+.chip:hover{background:rgba(255,255,255,.12);transform:translateY(-2px) rotate(-1deg)}
+
+/* ---------- result ---------- */
+#result{display:none;margin-top:26px;text-align:center}
+#result.show{display:block;animation:pop .7s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{from{transform:scale(.85) translateY(20px);opacity:0}}
+.orb-wrap{position:relative;width:200px;height:200px;margin:0 auto 10px;display:grid;place-items:center}
+.orb{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,#fff 0,color-mix(in srgb,var(--c) 70%,#fff) 14%,var(--c) 48%,color-mix(in srgb,var(--c) 45%,#000) 100%);
+  box-shadow:0 0 80px color-mix(in srgb,var(--c) 75%,transparent),inset 0 -18px 40px rgba(0,0,0,.3);
+  animation:morph 7s ease-in-out infinite,breathe 3.2s ease-in-out infinite;transition:background .8s,box-shadow .8s}
+@keyframes morph{50%{border-radius:58% 42% 46% 54%/48% 56% 44% 52%}}
+@keyframes breathe{50%{transform:scale(1.07)}}
+.ring{position:absolute;inset:-14px;border-radius:50%;border:2px dashed color-mix(in srgb,var(--c) 70%,transparent);animation:spin 14s linear infinite}
+.ring.r2{inset:-30px;border-style:dotted;animation-duration:22s;animation-direction:reverse;opacity:.6}
+@keyframes spin{to{transform:rotate(360deg)}}
+.emoji{position:relative;font-size:84px;animation:bob 2.6s ease-in-out infinite;filter:drop-shadow(0 8px 12px rgba(0,0,0,.35))}
+@keyframes bob{50%{transform:translateY(-10px) rotate(5deg)}}
+.label{font-family:var(--serif);font-weight:800;font-size:2.4rem;text-transform:capitalize;color:var(--c);transition:color .8s}
+.conf{color:var(--muted);margin:2px 0 22px}
+.bars{display:grid;gap:11px;text-align:left}
+.bar{display:grid;grid-template-columns:96px 1fr 52px;gap:12px;align-items:center;font-size:.92rem}
+.bar .name{text-transform:capitalize;font-weight:500}
+.track{height:12px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+.fill{height:100%;width:0;border-radius:99px;background:var(--bc);box-shadow:0 0 14px var(--bc);transition:width 1.1s cubic-bezier(.2,.9,.2,1)}
+.bar .pct{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.err{display:none;margin-top:18px;padding:14px 16px;border-radius:14px;background:rgba(255,77,77,.16);border:1px solid rgba(255,77,77,.5);color:#ffd0d0}
+.err.show{display:block}
+
+@media (max-width:520px){.bar{grid-template-columns:76px 1fr 46px}.orb-wrap{width:170px;height:170px}.emoji{font-size:70px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01s!important}#floaters{display:none}}
+</style>
+</head>
+<body>
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+<div id="floaters" aria-hidden="true"></div>
+
+<main>
+  <h1>Feelscape</h1>
+  <p class="sub">Type a sentence and see which emotion your words carry, from joy to fear.</p>
+
+  <section class="card">
+    <label for="text" style="display:none">Sentence to analyze</label>
+    <textarea id="text" maxlength="2000" placeholder="I can't believe how wonderful today turned out..."></textarea>
+    <div class="row">
+      <span class="count"><span id="n">0</span> / 2000</span>
+      <button class="go" id="go">Detect emotion</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="err" id="err" role="alert"></div>
+
+    <div id="result" aria-live="polite">
+      <div class="orb-wrap"><div class="ring"></div><div class="ring r2"></div><div class="orb"></div><div class="emoji" id="emoji">🙂</div></div>
+      <div class="label" id="label">joy</div>
+      <div class="conf" id="conf"></div>
+      <div class="bars" id="bars"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const EMO = {
+  sadness:{e:'😢',c:'#5b8def'}, joy:{e:'😄',c:'#ffc93c'}, love:{e:'💖',c:'#ff5fa2'},
+  anger:{e:'😡',c:'#ff4d4d'}, fear:{e:'😨',c:'#a26bff'}, surprise:{e:'😲',c:'#2ee6c5'}
+};
+const $ = id => document.getElementById(id);
+const floaters = $('floaters');
+const SAMPLES = [
+  "I feel so happy and excited today",
+  "I miss her so much it hurts",
+  "How dare you lie to my face",
+  "I am terrified of what comes next",
+  "I adore everything about you",
+  "I never expected such a surprise"
+];
+
+// ambient floating emojis
+function float(emoji, opacity){
+  const s = document.createElement('span');
+  s.className = 'fl'; s.textContent = emoji;
+  s.style.left = Math.random()*96 + 'vw';
+  s.style.fontSize = (20 + Math.random()*38) + 'px';
+  s.style.setProperty('--sx', (Math.random()*90 - 45) + 'px');
+  s.style.setProperty('--r', (Math.random()*80 - 40) + 'deg');
+  s.style.setProperty('--o', opacity);
+  s.style.animationDuration = (11 + Math.random()*12) + 's';
+  floaters.appendChild(s);
+  s.addEventListener('animationend', () => s.remove());
+}
+const all = Object.values(EMO).map(v => v.e);
+for (let i = 0; i < 14; i++) setTimeout(() => float(all[i % 6], .4), i * 500);
+setInterval(() => float(all[Math.floor(Math.random()*6)], .4), 1400);
+
+// sample chips + counter
+SAMPLES.forEach(t => {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.textContent = t;
+  b.onclick = () => { $('text').value = t; $('n').textContent = t.length; analyze(); };
+  $('chips').appendChild(b);
+});
+$('text').addEventListener('input', e => $('n').textContent = e.target.value.length);
+$('text').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) analyze(); });
+$('go').onclick = analyze;
+
+async function analyze(){
+  const text = $('text').value.trim();
+  const err = $('err');
+  err.classList.remove('show');
+  if (!text){ err.textContent = 'Write a sentence first, then press Detect emotion.'; err.classList.add('show'); return; }
+
+  const btn = $('go'); btn.disabled = true; btn.textContent = 'Reading feelings...';
+  try {
+    const res = await fetch('/predict', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text})
+    });
+    if (!res.ok){
+      const d = await res.json().catch(() => ({}));
+      throw new Error(typeof d.detail === 'string' ? d.detail : 'The server returned an error (' + res.status + ').');
+    }
+    show(await res.json());
+  } catch (e){
+    err.textContent = e instanceof TypeError
+      ? 'Cannot reach the server. Check that uvicorn is running and reload this page.'
+      : e.message;
+    err.classList.add('show');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Detect emotion';
+  }
+}
+
+function show(d){
+  const top = EMO[d.predicted_emotion] || {e:'🙂', c:'#8f7bff'};
+  document.documentElement.style.setProperty('--c', top.c);
+  document.body.classList.add('tinted');
+  document.querySelectorAll('.blob').forEach((b, i) => { if (i === 1) b.style.background = top.c; });
+
+  $('emoji').textContent = top.e;
+  $('label').textContent = d.predicted_emotion;
+  $('conf').textContent = (d.confidence * 100).toFixed(1) + '% confident';
+
+  const bars = $('bars'); bars.innerHTML = '';
+  Object.entries(d.all_probabilities).sort((a, b) => b[1] - a[1]).forEach(([k, v]) => {
+    const row = document.createElement('div'); row.className = 'bar';
+    row.innerHTML = '<span class="name">' + (EMO[k]?.e || '') + ' ' + k + '</span>' +
+      '<div class="track"><div class="fill" style="--bc:' + (EMO[k]?.c || '#fff') + '"></div></div>' +
+      '<span class="pct">' + (v * 100).toFixed(1) + '%</span>';
+    bars.appendChild(row);
+    requestAnimationFrame(() => requestAnimationFrame(() => row.querySelector('.fill').style.width = (v * 100) + '%'));
+  });
+
+  const r = $('result'); r.classList.remove('show'); void r.offsetWidth; r.classList.add('show');
+  for (let i = 0; i < 12; i++) setTimeout(() => float(top.e, .85), i * 90); // celebration burst
+  r.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+</script>
+</body>
+</html>
