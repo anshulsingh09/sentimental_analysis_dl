@@ -11,7 +11,7 @@ from keras.models import load_model
 from keras.utils import pad_sequences
 from pydantic import BaseModel, Field
 
-model_path = "Artifacts/BiGRU_Model.keras"
+model_path = "Artifacts/BIGRU_Model.keras"
 tokenizer_path = "Artifacts/tokenizer.pkl"
 max_sequence_length = 50
 emotion_labels = ["sadness", "joy", "love", "anger", "fear", "surprise"]
